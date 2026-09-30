@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Unified K-Means Analytics Suite - ColorPalette & GeoZone Clustering</title>
+  <meta name="description" content="Advanced K-Means clustering web platform for dominant color extraction from images and spatial location geographic analysis with interactive maps." />
+  
+  <!-- FontAwesome & Leaflet CSS & Chart.js -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo-group">
+        <div class="logo-icon"><i class="fa-solid fa-chart-pie"></i></div>
+        <div>
+          <h1 class="logo-title">K-Means Analytics Suite</h1>
+          <span style="font-size: 0.75rem; color: var(--text-muted);">Multi-Domain Clustering Platform</span>
+        </div>
+      </div>
+
+      <!-- App Mode Navigation Tabs -->
+      <nav class="app-nav-tabs">
+        <button id="navTabColor" class="nav-tab active" data-view="color">
+          <i class="fa-solid fa-palette"></i> ColorPalette Extractor
+        </button>
+        <button id="navTabGeo" class="nav-tab" data-view="geo">
+          <i class="fa-solid fa-map-location-dot"></i> GeoZone Mapper
+        </button>
+      </nav>
+
+      <!-- Global Controls -->
+      <div class="header-controls">
+        <div id="backendStatusBadge" class="badge badge-status" title="Flask Backend API Connection Status">
+          <span class="status-dot offline"></span> <span id="backendStatusText">Client Engine</span>
+        </div>
+        <button id="btnCamera" class="btn btn-secondary" title="Capture from WebCam">
+          <i class="fa-solid fa-camera"></i> Camera
+        </button>
+        <button id="btnExportModal" class="btn btn-primary" title="Export Palette">
+          <i class="fa-solid fa-download"></i> Export
+        </button>
+        <button id="btnThemeToggle" class="btn-icon" title="Toggle Light/Dark Theme">
+          <i class="fa-solid fa-moon" id="themeIcon"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- MAIN CONTENT VIEW 1: COLOR PALETTE EXTRACTOR -->
+    <main id="viewColorPalette" class="main-content">
+      <!-- Left Column: Source Image, Canvas & Loupe, Controls, Sample Gallery -->
+      <section class="glass-panel">
+        <div class="panel-header">
+          <h2 class="panel-title"><i class="fa-solid fa-image"></i> Image Source & Magnifier Loupe</h2>
+          <span id="imageDimensions" class="badge" style="color: var(--text-muted); font-size: 0.8rem;">No Image</span>
+        </div>
+
+        <!-- File Upload Dropzone -->
+        <div id="dropzone" class="dropzone">
+          <i class="fa-solid fa-cloud-arrow-up dropzone-icon"></i>
+          <p class="dropzone-text"><strong>Drag & Drop an image here</strong> or click to browse</p>
+          <div class="dropzone-btn-group">
+            <input type="file" id="fileInput" accept="image/*" style="display: none;" />
+            <button class="btn btn-secondary" onclick="document.getElementById('fileInput').click()">
+              <i class="fa-solid fa-folder-open"></i> Browse File
+            </button>
+          </div>
+          <p style="font-size: 0.75rem; color: var(--text-dim);">Supports PNG, JPG, WEBP, SVG, GIF, AVIF or Paste (Ctrl+V)</p>
+        </div>
+
+        <!-- Camera Stream Container -->
+        <div id="cameraWrapper" style="display: none; flex-direction: column; gap: 10px; align-items: center;">
+          <video id="webcamVideo" autoplay playsinline style="width: 100%; max-height: 350px; border-radius: var(--radius-md); background: #000;"></video>
+          <div style="display: flex; gap: 10px;">
+            <button id="btnTakeSnapshot" class="btn btn-primary"><i class="fa-solid fa-camera-retro"></i> Take Snapshot</button>
+            <button id="btnCloseCamera" class="btn btn-secondary"><i class="fa-solid fa-xmark"></i> Close Camera</button>
+          </div>
+        </div>
+
+        <!-- Image Canvas with Interactive Eyedropper Magnifier Loupe -->
+        <div class="canvas-wrapper" id="canvasWrapper" style="display: none;">
+          <canvas id="imageCanvas"></canvas>
+          <div id="loupe" class="loupe">
+            <div id="loupeInfo" class="loupe-info">#000000</div>
+          </div>
+        </div>
+
+        <!-- Extractor Tuning Controls -->
+        <div class="control-row">
+          <div class="input-group">
+            <label class="input-label" for="algSelect">Algorithm</label>
+            <select id="algSelect" class="select-custom">
+              <option value="kmeans" selected>K-Means (Client JS)</option>
+              <option value="backend">K-Means (Python SciPy/Flask API)</option>
+              <option value="quantization">Median Cut Quantization</option>
+              <option value="vibrant">Vibrant Spectrum</option>
+            </select>
+          </div>
+
+          <div class="input-group">
+            <label class="input-label" for="colorCountRange">
+              Colors Count: <span id="colorCountVal" style="color: var(--accent-primary);">6</span>
+            </label>
+            <input type="range" id="colorCountRange" class="input-range" min="3" max="24" value="6" />
+          </div>
+
+          <div class="input-group">
+            <label class="input-label" for="filterSelect">Filter Option</label>
+            <select id="filterSelect" class="select-custom">
+              <option value="none">All Pixels</option>
+              <option value="ignoreExtremes" selected>Ignore Extremes (B/W)</option>
+              <option value="vibrantOnly">High Saturation (>20%)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Curated Sample Gallery -->
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <div class="panel-title" style="font-size: 0.9rem;">
+            <i class="fa-solid fa-shapes"></i> Or pick a Sample Image:
+          </div>
+          <div id="samplesGrid" class="samples-grid"></div>
+        </div>
+      </section>
+
+      <!-- Right Column: Extracted Palette Cards & Inspector Workspace -->
+      <section class="glass-panel">
+        <div class="panel-header">
+          <h2 class="panel-title"><i class="fa-solid fa-palette"></i> Extracted Palette</h2>
+          <div style="display: flex; gap: 8px;">
+            <button id="btnReextract" class="btn-icon" title="Re-extract Palette"><i class="fa-solid fa-arrows-rotate"></i></button>
+            <button id="btnSavePalette" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.8rem;">
+              <i class="fa-solid fa-bookmark"></i> Save Palette
+            </button>
+          </div>
+        </div>
+
+        <!-- Palette Swatches Grid -->
+        <div id="paletteGrid" class="palette-grid">
+          <!-- Swatch cards generated dynamically -->
+        </div>
+
+        <!-- Detail Workspace Navigation Tabs -->
+        <div class="tabs-bar">
+          <button class="tab-btn active" data-tab="inspector"><i class="fa-solid fa-sliders"></i> Color Inspector</button>
+          <button class="tab-btn" data-tab="accessibility"><i class="fa-solid fa-universal-access"></i> WCAG & Vision</button>
+          <button class="tab-btn" data-tab="gradient"><i class="fa-solid fa-wand-magic-sparkles"></i> CSS Gradient</button>
+          <button class="tab-btn" data-tab="mockup"><i class="fa-solid fa-desktop"></i> UI Mockup</button>
+          <button class="tab-btn" data-tab="library"><i class="fa-solid fa-book-bookmark"></i> Saved Library</button>
+        </div>
+
+        <!-- Tab 1: Color Inspector & Harmonies -->
+        <div id="tab-inspector" class="tab-content active">
+          <div id="selectedColorBanner" style="display: flex; align-items: center; justify-content: space-between; padding: 14px; border-radius: var(--radius-md); background: var(--bg-surface-elevated); border: 1px solid var(--border-glass);">
+            <div style="display: flex; align-items: center; gap: 14px;">
+              <div id="inspectorColorBlock" style="width: 48px; height: 48px; border-radius: var(--radius-md); border: 2px solid var(--border-glass-hover); background: #38bdf8;"></div>
+              <div>
+                <h3 id="inspectorColorName" style="font-size: 1.1rem;">Cyber Cyan</h3>
+                <span id="inspectorColorHex" style="font-family: monospace; color: var(--text-muted);">#00F0FF</span>
+              </div>
+            </div>
+            <div id="inspectorWarmth" class="badge" style="font-size: 0.82rem; color: var(--accent-amber);">Warmth: 50%</div>
+          </div>
+
+          <!-- Color Conversions Table -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px;">
+            <div class="swatch-card" style="padding: 10px; cursor: pointer;" id="cardRgb">
+              <span style="font-size: 0.72rem; color: var(--text-muted);">RGB</span>
+              <strong id="valRgb" style="font-family: monospace; font-size: 0.85rem;">rgb(0, 240, 255)</strong>
+            </div>
+            <div class="swatch-card" style="padding: 10px; cursor: pointer;" id="cardHsl">
+              <span style="font-size: 0.72rem; color: var(--text-muted);">HSL</span>
+              <strong id="valHsl" style="font-family: monospace; font-size: 0.85rem;">hsl(184, 100%, 50%)</strong>
+            </div>
+            <div class="swatch-card" style="padding: 10px; cursor: pointer;" id="cardCmyk">
+              <span style="font-size: 0.72rem; color: var(--text-muted);">CMYK</span>
+              <strong id="valCmyk" style="font-family: monospace; font-size: 0.85rem;">cmyk(100%, 0%, 0%, 0%)</strong>
+            </div>
+            <div class="swatch-card" style="padding: 10px; cursor: pointer;" id="cardOklch">
+              <span style="font-size: 0.72rem; color: var(--text-muted);">OKLCH</span>
+              <strong id="valOklch" style="font-family: monospace; font-size: 0.85rem;">oklch(0.86, 0.17, 195)</strong>
+            </div>
+          </div>
+
+          <!-- Color Harmonies -->
+          <div>
+            <h4 style="font-size: 0.9rem; margin-bottom: 8px; color: var(--text-muted);">Color Harmonies</h4>
+            <div id="harmoniesContainer" style="display: flex; flex-direction: column; gap: 10px;"></div>
+          </div>
+
+          <!-- Tints & Shades Ramp -->
+          <div>
+            <h4 style="font-size: 0.9rem; margin-bottom: 8px; color: var(--text-muted);">Tints & Shades Ramp</h4>
+            <div id="shadesRamp" style="display: flex; height: 36px; border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--border-glass);"></div>
+          </div>
+        </div>
+
+        <!-- Tab 2: WCAG Accessibility Matrix & Vision Simulation -->
+        <div id="tab-accessibility" class="tab-content">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <h4 style="font-size: 0.95rem; color: var(--text-muted);">Pairwise Contrast Ratio Matrix</h4>
+            <div class="input-group" style="flex-direction: row; align-items: center; gap: 8px;">
+              <label for="visionSelect" style="font-size: 0.8rem; color: var(--text-muted);">Vision Mode:</label>
+              <select id="visionSelect" class="select-custom" style="padding: 4px 10px; font-size: 0.8rem;">
+                <option value="normal">Normal Vision</option>
+                <option value="protanopia">Protanopia (Red-Blind)</option>
+                <option value="deuteranopia">Deuteranopia (Green-Blind)</option>
+                <option value="tritanopia">Tritanopia (Blue-Blind)</option>
+                <option value="achromatopsia">Achromatopsia (Monochrome)</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="overflow-x: auto;">
+            <table id="contrastTable" class="contrast-table"></table>
+          </div>
+        </div>
+
+        <!-- Tab 3: CSS Gradient Generator -->
+        <div id="tab-gradient" class="tab-content">
+          <div style="display: flex; flex-direction: column; gap: 14px;">
+            <div id="gradientPreview" style="height: 140px; border-radius: var(--radius-md); border: 1px solid var(--border-glass); transition: var(--transition-smooth);"></div>
+
+            <div class="control-row">
+              <div class="input-group">
+                <label class="input-label" for="gradType">Type</label>
+                <select id="gradType" class="select-custom">
+                  <option value="linear">Linear Gradient</option>
+                  <option value="radial">Radial Gradient</option>
+                </select>
+              </div>
+              <div class="input-group">
+                <label class="input-label" for="gradAngle">Angle: <span id="gradAngleVal">90°</span></label>
+                <input type="range" id="gradAngle" class="input-range" min="0" max="360" value="90" />
+              </div>
+            </div>
+
+            <div style="position: relative;">
+              <pre id="gradientCssCode" class="code-box">background: linear-gradient(90deg, #00F0FF, #FF007F);</pre>
+              <button id="btnCopyGradientCss" class="btn btn-secondary" style="position: absolute; top: 10px; right: 10px; padding: 4px 10px; font-size: 0.75rem;">
+                <i class="fa-solid fa-copy"></i> Copy CSS
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 4: Live UI Mockup Preview -->
+        <div id="tab-mockup" class="tab-content">
+          <div id="mockupContainer" class="mockup-preview"></div>
+        </div>
+
+        <!-- Tab 5: Saved Palette Library -->
+        <div id="tab-library" class="tab-content">
+          <div id="libraryContainer" style="display: flex; flex-direction: column; gap: 12px;"></div>
+        </div>
+      </section>
+    </main>
+
+    <!-- MAIN CONTENT VIEW 2: GEOZONE MAPPER -->
+    <main id="viewGeoZone" class="main-content" style="display: none; grid-template-columns: 1fr;">
+      <section class="glass-panel" style="padding: 16px; gap: 16px;">
+        <!-- Geo Toolbar & Tuning Bar -->
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div>
+              <h2 class="panel-title" style="font-size: 1.15rem;">
+                <i class="fa-solid fa-earth-americas"></i> GeoZone Spatial K-Means Mapper
+              </h2>
+              <span id="datasetDesc" style="font-size: 0.8rem; color: var(--text-muted);">Select a geographic location dataset to run cluster analysis</span>
+            </div>
+
+            <!-- Action Buttons -->
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button id="btnUploadGeo" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.82rem;">
+                <i class="fa-solid fa-file-csv"></i> Upload CSV/GeoJSON
+              </button>
+              <button id="btnElbowCurve" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.82rem;">
+                <i class="fa-solid fa-chart-line"></i> Elbow Curve Analysis
+              </button>
+              <button id="btnExportGeoData" class="btn btn-primary" style="padding: 6px 12px; font-size: 0.82rem;">
+                <i class="fa-solid fa-file-export"></i> Export GeoJSON
+              </button>
+            </div>
+          </div>
+
+          <!-- Dataset Selector Pills -->
+          <div class="geo-dataset-pills" id="datasetPills"></div>
+
+          <!-- Control Parameters Row -->
+          <div class="control-row" style="background: var(--bg-surface-elevated); padding: 12px; border-radius: var(--radius-md); border: 1px solid var(--border-glass);">
+            <div class="input-group">
+              <label class="input-label" for="geoKRange">
+                Clusters ($K$): <span id="geoKVal" style="color: var(--accent-primary); font-weight: bold;">4</span>
+              </label>
+              <input type="range" id="geoKRange" class="input-range" min="2" max="12" value="4" />
+            </div>
+
+            <div class="input-group">
+              <label class="input-label" for="geoMetricSelect">Distance Metric</label>
+              <select id="geoMetricSelect" class="select-custom">
+                <option value="haversine" selected>Haversine Spherical (km)</option>
+                <option value="euclidean">Euclidean Planar</option>
+              </select>
+            </div>
+
+            <div class="input-group" style="flex-direction: row; align-items: center; gap: 14px; margin-top: 18px;">
+              <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.85rem; color: var(--text-main);">
+                <input type="checkbox" id="chkConvexHulls" checked /> Convex Hulls
+              </label>
+              <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.85rem; color: var(--text-main);">
+                <input type="checkbox" id="chkRadii" /> Service Radii
+              </label>
+            </div>
+
+            <div style="display: flex; align-items: flex-end;">
+              <button id="btnReclusterGeo" class="btn btn-primary" style="height: 38px; width: 100%;">
+                <i class="fa-solid fa-rotate"></i> Re-Run K-Means
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Geo Layout: Map + Metrics Sidebar -->
+        <div class="geo-workspace-grid">
+          <!-- Leaflet Interactive Map Container -->
+          <div class="geo-map-wrapper">
+            <div id="geoMap" class="geo-map"></div>
+          </div>
+
+          <!-- Spatial Metrics & Cluster Legend Cards Sidebar -->
+          <div class="geo-sidebar">
+            <!-- Metrics Overview Card -->
+            <div class="geo-card">
+              <h3 style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 10px;">
+                <i class="fa-solid fa-sliders"></i> Cluster Analytics Summary
+              </h3>
+              <div class="geo-metrics-grid">
+                <div class="metric-box">
+                  <span class="metric-label">Points Count</span>
+                  <strong id="geoStatTotalPoints" class="metric-value">0</strong>
+                </div>
+                <div class="metric-box">
+                  <span class="metric-label">Clusters ($K$)</span>
+                  <strong id="geoStatK" class="metric-value">4</strong>
+                </div>
+                <div class="metric-box">
+                  <span class="metric-label">WCSS Inertia</span>
+                  <strong id="geoStatInertia" class="metric-value">0.00</strong>
+                </div>
+                <div class="metric-box">
+                  <span class="metric-label">Iterations</span>
+                  <strong id="geoStatIter" class="metric-value">0</strong>
+                </div>
+              </div>
+            </div>
+
+            <!-- Clusters Breakdown List -->
+            <div class="geo-card" style="flex: 1; overflow-y: auto;">
+              <h3 style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 10px;">
+                <i class="fa-solid fa-layer-group"></i> Clusters & Centroids
+              </h3>
+              <div id="clustersList" style="display: flex; flex-direction: column; gap: 10px;"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Export Modal Overlay (ColorPalette) -->
+  <div id="exportModal" class="modal-overlay">
+    <div class="modal-card">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h3><i class="fa-solid fa-file-export"></i> Export Palette</h3>
+        <button id="btnCloseExportModal" class="btn-icon"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div class="tabs-bar">
+        <button class="tab-btn active" data-export="css">CSS / SCSS</button>
+        <button class="tab-btn" data-export="tailwind">Tailwind</button>
+        <button class="tab-btn" data-export="json">JSON</button>
+        <button class="tab-btn" data-export="files">Files (.ase / .svg)</button>
+      </div>
+
+      <div style="position: relative;">
+        <pre id="exportCodeBox" class="code-box" style="height: 200px;"></pre>
+        <button id="btnCopyExportCode" class="btn btn-primary" style="position: absolute; bottom: 10px; right: 10px; padding: 6px 14px; font-size: 0.8rem;">
+          <i class="fa-solid fa-copy"></i> Copy Code
+        </button>
+      </div>
+
+      <div id="fileExportSection" style="display: none; gap: 12px;">
+        <button id="btnDownloadAse" class="btn btn-secondary" style="flex: 1;"><i class="fa-solid fa-file-arrow-down"></i> Download Adobe ASE</button>
+        <button id="btnDownloadSvg" class="btn btn-secondary" style="flex: 1;"><i class="fa-solid fa-image"></i> Download SVG Card</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Elbow Curve Chart Modal Overlay (GeoZone) -->
+  <div id="elbowModal" class="modal-overlay">
+    <div class="modal-card" style="max-width: 650px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <h3><i class="fa-solid fa-chart-line"></i> Optimal K Elbow Curve Method</h3>
+        <button id="btnCloseElbowModal" class="btn-icon"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 14px;">
+        The Elbow Method plots WCSS (Within-Cluster Sum of Squares Inertia) against cluster counts $K$. Look for the "elbow point" where the rate of decrease abruptly bends to pick the optimal $K$.
+      </p>
+
+      <div style="height: 300px; position: relative;">
+        <canvas id="elbowChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- CSV / GeoJSON Upload Modal Overlay -->
+  <div id="uploadGeoModal" class="modal-overlay">
+    <div class="modal-card" style="max-width: 550px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <h3><i class="fa-solid fa-file-csv"></i> Import Spatial Dataset</h3>
+        <button id="btnCloseUploadGeoModal" class="btn-icon"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 12px;">
+        Upload a CSV file (with columns: <code>name, lat, lng, category</code>) or a GeoJSON FeatureCollection.
+      </p>
+
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <input type="file" id="geoFileInput" accept=".csv, .json, .geojson" style="display: none;" />
+        <button class="btn btn-secondary" onclick="document.getElementById('geoFileInput').click()" style="padding: 14px;">
+          <i class="fa-solid fa-cloud-arrow-up"></i> Choose CSV or GeoJSON File
+        </button>
+        <span id="geoFileNameText" style="font-size: 0.8rem; text-align: center; color: var(--accent-primary);">No file selected</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- App Script Entry Point -->
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

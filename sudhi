@@ -1,0 +1,29 @@
+# K-Means Analytics Suite - Browser Visual & Access Link
+
+Direct Browser Access URL: **[http://127.0.0.1:5000](http://127.0.0.1:5000)**
+
+Below is the visual representation of the **Cyberpunk Neon City** sample image and the **ColorPalette Extractor** workspace currently running in your browser:
+
+![K-Means Analytics Suite Browser Interface](C:/Users/BCOMCA/.gemini/antigravity-ide/brain/6df483ee-4945-4ec6-baad-89d51ee7b33c/cyberpunk_palette_extractor_1786079842554.png)
+
+---
+
+### Extracted Palette Breakdown
+
+| Swatch | Color Name | Hex Code | RGB | HSL |
+| :---: | :--- | :--- | :--- | :--- |
+| 🟦 | Cyber Cyan | `#00F0FF` | `rgb(0, 240, 255)` | `hsl(184, 100%, 50%)` |
+| 🟪 | Electric Magenta | `#FF007F` | `rgb(255, 0, 127)` | `hsl(330, 100%, 50%)` |
+| 🟧 | Synthwave Amber | `#FFAA00` | `rgb(255, 170, 0)` | `hsl(40, 100%, 50%)` |
+| 🟪 | Neon Purple | `#7000FF` | `rgb(112, 0, 255)` | `hsl(266, 100%, 50%)` |
+| ⬛ | Midnight Violet | `#180B38` | `rgb(24, 11, 56)` | `hsl(257, 67%, 13%)` |
+| ⬛ | Deep Background | `#0A051B` | `rgb(10, 5, 27)` | `hsl(254, 69%, 6%)` |
+
+---
+
+### How to Access & Interact
+
+1. Click **[http://127.0.0.1:5000](http://127.0.0.1:5000)** to open the app directly in your browser.
+2. Hover over the image to magnify pixels with the 3x Loupe.
+3. Switch between **ColorPalette Extractor** and **GeoZone Mapper** tab in the top navigation bar.
+4. Export palettes directly to CSS, Tailwind, or Adobe `.ase` swatch files.
